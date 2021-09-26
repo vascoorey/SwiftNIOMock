@@ -17,9 +17,10 @@ open class Server {
     private(set) var bootstrap: ServerBootstrap!
     private(set) var serverChannel: Channel!
 
-    public init(port: Int, handler: @escaping Middleware) {
+    public init(port: Int, group: EventLoopGroup?, handler: @escaping Middleware) {
         self.port = port
         self.handler = handler
+        self.group = group
     }
 
     func bootstrapServer(handler: @escaping Middleware) -> ServerBootstrap {
@@ -39,7 +40,7 @@ open class Server {
             .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 1)
     }
 
-    public func start() throws {
+    public func start() throws -> SocketAddress {
         group = group ?? MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         bootstrap = bootstrap ?? bootstrapServer(handler: handler)
 
@@ -49,6 +50,8 @@ open class Server {
         serverChannel.closeFuture.whenComplete {
             print("Server stopped")
         }
+        
+        return serverChannel.localAddress!
     }
 
     public func stop() throws {
@@ -206,6 +209,16 @@ extension Server.HTTPHandler {
             headers.replaceOrAdd(name: "Content-Type", value: "text/html; charset=utf-8")
             self.headers = headers
             self.body = value.data(using: .utf8)
+        }
+        
+        public func sendData(_ statusCode: HTTPResponseStatus, headers: HTTPHeaders = HTTPHeaders(), value: Data?) -> Void {
+            self.statusCode = statusCode
+            var headers = headers
+            if !headers.contains(name: "Content-Type") {
+                headers.replaceOrAdd(name: "Content-Type", value: "application/octet-stream")
+            }
+            self.headers = headers
+            self.body = value
         }
     }
 }
