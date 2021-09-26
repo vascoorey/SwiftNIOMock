@@ -93,8 +93,10 @@ extension Server {
                 let (head, buffer) = state.requestComplete()
 
                 var httpBody: Data?
+                var bytes: [UInt8]?
                 if var body = buffer {
-                    httpBody = body.readString(length: body.readableBytes)?.data(using: .utf8)
+                    bytes = body.readBytes(length: body.readableBytes)
+                    httpBody = Data(bytes: bytes!)
                 }
 
                 let request = Request(head: head, body: httpBody, ctx: ctx)
